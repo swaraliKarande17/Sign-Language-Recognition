@@ -1,0 +1,36 @@
+data:	
+  # Path to the PHOENIX dataset on your machine	
+  # On Kaggle this will be changed to: /kaggle/input/phoenixweather2014t-3rd-attempt	
+  dataset_path: "data/phoenix2014T"	
+  img_size: 224        # resize each video frame to 224 x 224 pixels	
+  max_frames: 300      # max frames to use from each video	
+  batch_size: 4        # how many videos to process at once (reduce to 2 if out of memory)	
+  num_workers: 2       # parallel threads for data loading	
+	
+# ─── Model settings ─────────────────────────────────────────────────	
+model:	
+  backbone: "resnet50"   # CNN architecture for extracting frame features	
+  hidden_size: 512       # BiLSTM hidden dimension	
+  num_layers: 2          # number of stacked BiLSTM layers	
+  dropout: 0.3           # dropout probability (prevents overfitting)	
+  freeze_backbone: true  # start with CNN frozen, unfreeze later	
+	
+# ─── Training settings ──────────────────────────────────────────────	
+training:	
+  epochs: 50	
+  learning_rate: 0.0001	
+  weight_decay: 0.0001	
+  scheduler: "cosine"    # cosine annealing learning rate schedule	
+  unfreeze_epoch: 10     # epoch at which to unfreeze CNN and fine-tune it	
+  clip_grad_norm: 5.0    # prevents exploding gradients	
+  save_every: 5          # save a checkpoint every N epochs	
+	
+# ─── Translation model ──────────────────────────────────────────────	
+translation:	
+  model: "Helsinki-NLP/opus-mt-de-en"   # German -> English HuggingFace model	
+  max_length: 128	
+	
+# ─── Weights & Biases experiment tracking ───────────────────────────	
+wandb:	
+  project: "cslr-phoenix"	
+  entity: "swaralikarande2005"   # replace with your username at wandb.ai	
