@@ -31,7 +31,7 @@ class PhoenixDataset(Dataset):
     )
     SPLIT_MAP = {
         "train": "cvpr23.fairseq.i3d.train.how2sign.tsv",
-        "dev":   "cvpr23.fairseq.i3d.val.how2sign.tsv",
+        "val":   "cvpr23.fairseq.i3d.val.how2sign.tsv",
         "test":  "cvpr23.fairseq.i3d.test.how2sign.tsv",
     }
 
@@ -40,7 +40,7 @@ class PhoenixDataset(Dataset):
         """
         Args:
             root_dir:      ignored (paths are resolved from Kaggle input)
-            split:         "train", "dev", or "test"
+            split:         "train", "val", or "test"
             max_frames:    max frames to keep per sample (truncates longer)
             img_size:      unused (kept for API compatibility)
             use_keypoints: unused (kept for API compatibility)

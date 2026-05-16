@@ -60,7 +60,7 @@ def train():
         img_size=cfg["data"]["img_size"]	
     )	
     val_set = PhoenixDataset(	
-        cfg["data"]["dataset_path"], split="dev",	
+        cfg["data"]["dataset_path"], split="val",	
         max_frames=cfg["data"]["max_frames"],	
         img_size=cfg["data"]["img_size"]	
     )	
