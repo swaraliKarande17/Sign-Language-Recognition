@@ -1,124 +1,109 @@
-import os	
-import torch	
-import numpy as np	
-import pandas as pd	
-from torch.utils.data import Dataset	
-from .preprocessing import extract_frames, get_transform	
-from .keypoint_extractor import KeypointExtractor	
-	
-	
-class PhoenixDataset(Dataset):	
-    """	
-    PyTorch Dataset for RWTH PHOENIX-Weather 2014T.	
-	
-    Expected folder structure:	
-    phoenix2014T/	
-    ├── annotations/manual/	
-    │   ├── train.corpus.csv   (columns separated by |)	
-    │   ├── dev.corpus.csv     (validation set)	
-    │   └── test.corpus.csv	
-    └── features/fullFrame-210x260px/	
-        ├── train/<video_folder>/<frame>.png	
-        ├── dev/	
-        └── test/	
-	
-    CSV columns: name | video | start | end | speaker | folder | annotation	
-    annotation = space-separated German glosses e.g. "HEUTE WETTER GUT"	
-    """	
-	
-    def __init__(self, root_dir, split="train",	
-                 max_frames=300, img_size=224, use_keypoints=True):	
-        """	
-        Args:	
-            root_dir:      path to phoenix2014T/ root folder	
-            split:         "train", "dev" (validation), or "test"	
-            max_frames:    max frames to use from each video	
-            img_size:      pixel size to resize each frame to	
-            use_keypoints: whether to extract MediaPipe features	
-        """	
-        self.root_dir      = root_dir	
-        self.split         = split	
-        self.max_frames    = max_frames	
-        self.use_keypoints = use_keypoints	
-        self.transform     = get_transform(train=(split == "train"))	
-	
-        # Load annotation CSV	
-        csv_path = os.path.join(	
-            root_dir, f"annotations/manual/{split}.corpus.csv"	
-        )	
-        self.data = pd.read_csv(csv_path, sep="|")	
-	
-        # Build vocabulary: each unique gloss word gets an integer index	
-        # Index 0 is reserved for <blank> which CTC loss requires	
-        # Index 1 is <unk> for unknown words at inference time	
-        all_glosses = " ".join(self.data["annotation"].tolist()).split()	
-        vocab = sorted(set(all_glosses))	
-	
-        self.gloss2idx = {"<blank>": 0, "<unk>": 1}	
-        self.gloss2idx.update({g: i + 2 for i, g in enumerate(vocab)})	
-        self.idx2gloss = {v: k for k, v in self.gloss2idx.items()}	
-	
-        if self.use_keypoints:	
-            self.kp_extractor = KeypointExtractor()	
-	
-        print(f"[{split}] Loaded {len(self.data)} samples | vocab size: {len(self.gloss2idx)}")	
-	
-    def __len__(self):	
-        return len(self.data)	
-	
-    def __getitem__(self, idx):	
-        row = self.data.iloc[idx]	
-	
-        # Build path to frame folder for this sample	
-        video_dir = os.path.join(	
-            self.root_dir,	
-            "features/fullFrame-210x260px",	
-            self.split,	
-            row["folder"]	
-        )	
-	
-        # Extract frames as numpy array (T, H, W, 3)	
-        frames = extract_frames(video_dir, self.max_frames)	
-	
-        # Apply transforms and convert to tensor (T, C, H, W)	
-        frames_tensor = torch.stack([self.transform(f) for f in frames])	
-	
-        # Extract keypoints if enabled → tensor (T, 258)	
-        keypoints_tensor = None	
-        if self.use_keypoints:	
-            kps = self.kp_extractor.extract_sequence(frames)	
-            keypoints_tensor = torch.tensor(kps, dtype=torch.float32)	
-	
-        # Convert gloss annotation string to integer list	
-        glosses = row["annotation"].split()	
-        label = torch.tensor(	
-            [self.gloss2idx.get(g, 1) for g in glosses],	
-            dtype=torch.long	
-        )	
-	
-        if self.use_keypoints:	
-            return frames_tensor, keypoints_tensor, label	
-        return frames_tensor, label	
-	
-	
-def collate_fn(batch):	
-    """	
-    Custom collate function for the DataLoader.	
-    Videos have different lengths so we pad them to the same length.	
-    CTC loss requires all label sequences to be concatenated.	
-    """	
-    if len(batch[0]) == 3:	
-        frames, keypoints, labels = zip(*batch)	
-        kp_padded = torch.nn.utils.rnn.pad_sequence(	
-            keypoints, batch_first=True	
-        )	
-    else:	
-        frames, labels = zip(*batch)	
-        kp_padded = None	
-	
-    frame_lengths = torch.tensor([f.shape[0] for f in frames])	
-    label_lengths = torch.tensor([l.shape[0] for l in labels])	
-    frames_padded = torch.nn.utils.rnn.pad_sequence(frames, batch_first=True)	
-    labels_concat = torch.cat(labels)	
-	
-    return frames_padded, kp_padded, labels_concat, frame_lengths, label_lengths	
+import os
+import torch
+import numpy as np
+import pandas as pd
+from torch.utils.data import Dataset
+
+
+class PhoenixDataset(Dataset):
+    """
+    Dataset using pre-extracted i3d .npy features + translation labels.
+    Works with RWTH-PHOENIX-2014T i3d + mediapipe Kaggle dataset.
+
+    Expected data structure (on Kaggle):
+    - i3d .npy features: i3d_features_rwth phoenix 2014t/{train,dev,test}/<id>.npy
+    - Annotations: tsv files/{train,val,test}.how2sign.tsv
+
+    Each .npy file has shape (T, 1024) where T = number of frames.
+    Labels are word-level tokens from the German translation column.
+    """
+
+    I3D_BASE = (
+        "/kaggle/input/datasets/rabeyaakter23/"
+        "rwth-phoenix-2014t-i3d-features-mediapipe-features/"
+        "i3d_features_rwth phoenix 2014t/"
+        "i3d_features_rwth phoenix 2014t"
+    )
+    TSV_BASE = (
+        "/kaggle/input/datasets/rabeyaakter23/"
+        "rwth-phoenix-2014t-i3d-features-mediapipe-features/"
+        "tsv files_rwth phoenix 2014t/tsv files"
+    )
+    SPLIT_MAP = {
+        "train": "cvpr23.fairseq.i3d.train.how2sign.tsv",
+        "dev":   "cvpr23.fairseq.i3d.val.how2sign.tsv",
+        "test":  "cvpr23.fairseq.i3d.test.how2sign.tsv",
+    }
+
+    def __init__(self, root_dir=None, split="train",
+                 max_frames=300, img_size=224, use_keypoints=False):
+        """
+        Args:
+            root_dir:      ignored (paths are resolved from Kaggle input)
+            split:         "train", "dev", or "test"
+            max_frames:    max frames to keep per sample (truncates longer)
+            img_size:      unused (kept for API compatibility)
+            use_keypoints: unused (kept for API compatibility)
+        """
+        self.split      = split
+        self.max_frames = max_frames
+
+        # Load annotation TSV
+        tsv_path = os.path.join(self.TSV_BASE, self.SPLIT_MAP[split])
+        self.data = pd.read_csv(tsv_path, sep="\t")
+        self.data = self.data[self.data["translation"].notna()].reset_index(drop=True)
+
+        # Build vocabulary from translations (word-level tokens)
+        # Index 0 = <blank> reserved for CTC loss
+        # Index 1 = <unk> for out-of-vocabulary words at inference
+        all_words = " ".join(self.data["translation"].tolist()).split()
+        vocab = sorted(set(all_words))
+        self.gloss2idx = {"<blank>": 0, "<unk>": 1}
+        self.gloss2idx.update({w: i + 2 for i, w in enumerate(vocab)})
+        self.idx2gloss = {v: k for k, v in self.gloss2idx.items()}
+
+        # i3d feature folder for this split
+        self.npy_dir = os.path.join(self.I3D_BASE, split)
+
+        print(f"[{split}] Loaded {len(self.data)} samples | vocab size: {len(self.gloss2idx)}")
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        row = self.data.iloc[idx]
+
+        # Load pre-extracted i3d features → (T, 1024)
+        npy_path = os.path.join(self.npy_dir, row["id"] + ".npy")
+        features = np.load(npy_path)
+
+        # Truncate to max_frames if needed
+        if features.shape[0] > self.max_frames:
+            features = features[:self.max_frames]
+
+        frames_tensor = torch.tensor(features, dtype=torch.float32)  # (T, 1024)
+
+        # Tokenize translation into integer label sequence
+        words = row["translation"].split()
+        label = torch.tensor(
+            [self.gloss2idx.get(w, 1) for w in words],
+            dtype=torch.long
+        )
+
+        # Return (frames, None, label) — None keeps collate_fn signature intact
+        return frames_tensor, None, label
+
+
+def collate_fn(batch):
+    """
+    Custom collate for variable-length i3d sequences.
+    Pads frames to same length; concatenates labels for CTC loss.
+    """
+    frames, _, labels = zip(*batch)
+
+    frame_lengths = torch.tensor([f.shape[0] for f in frames])
+    label_lengths = torch.tensor([l.shape[0] for l in labels])
+    frames_padded = torch.nn.utils.rnn.pad_sequence(frames, batch_first=True)
+    labels_concat = torch.cat(labels)
+
+    return frames_padded, None, labels_concat, frame_lengths, label_lengths
