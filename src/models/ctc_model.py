@@ -1,23 +1,8 @@
-import torch
+new_model = '''import torch
 import torch.nn as nn
 
 
 class CSLRModel(nn.Module):
-    """
-    Continuous Sign Language Recognition Model.
-
-    Architecture:
-        Pre-extracted i3d features (1024-dim) -> feature projection
-        Bidirectional LSTM (2 layers)
-        CTC output head
-
-    Inputs:
-        frames:    (batch, T, 1024)  — pre-extracted i3d features
-        keypoints: ignored (kept for API compatibility)
-
-    Output:
-        log_probs: (batch, T, vocab_size) — log probabilities per timestep
-    """
 
     I3D_FEATURE_DIM = 1024
 
@@ -25,10 +10,41 @@ class CSLRModel(nn.Module):
                  num_layers=2, dropout=0.3, use_keypoints=False):
         super().__init__()
 
-        # ── 1. i3d Feature Projection ────────────────────────────────
-        # Project from 1024 (i3d output) to hidden_size
         self.feat_proj = nn.Sequential(
             nn.Linear(self.I3D_FEATURE_DIM, hidden_size),
             nn.LayerNorm(hidden_size),
             nn.ReLU(),
             nn.Dropout(dropout)
+        )
+
+        self.bilstm = nn.LSTM(
+            input_size=hidden_size,
+            hidden_size=hidden_size // 2,
+            num_layers=num_layers,
+            bidirectional=True,
+            dropout=dropout if num_layers > 1 else 0,
+            batch_first=True
+        )
+
+        self.ctc_head = nn.Sequential(
+            nn.Dropout(dropout),
+            nn.Linear(hidden_size, vocab_size)
+        )
+
+    def freeze_backbone(self, freeze=True):
+        pass
+
+    def forward(self, frames, keypoints=None):
+        feats = self.feat_proj(frames)
+        lstm_out, _ = self.bilstm(feats)
+        logits = self.ctc_head(lstm_out)
+        return logits.log_softmax(dim=-1)
+'''
+
+import os
+os.chdir("/kaggle/working/Sign-Language-Recognition")
+
+with open("src/models/ctc_model.py", "wb") as f:
+    f.write(new_model.encode("utf-8"))
+
+print("✅ ctc_model.py fixed!")
