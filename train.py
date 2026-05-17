@@ -98,12 +98,22 @@ def train():
         optimizer, T_max=cfg["training"]["epochs"]	
     )	
 	
-    os.makedirs("checkpoints", exist_ok=True)	
-    best_wer = float("inf")	
+    os.makedirs("checkpoints", exist_ok=True)
+    best_wer    = float("inf")
+    start_epoch = 0
+
+    # Resume from latest checkpoint if it exists
+    if os.path.exists("checkpoints/latest_model.pt"):
+        print("Resuming from latest checkpoint...")
+        ckpt = torch.load("checkpoints/latest_model.pt", map_location=device)
+        model.load_state_dict(ckpt["model_state"])
+        optimizer.load_state_dict(ckpt["optimizer_state"])
+        best_wer    = ckpt["val_wer"]
+        start_epoch = ckpt["epoch"] + 1
+        print(f"Resumed from epoch {start_epoch} | WER: {best_wer:.4f}")
 	
     # ── Training Loop ────────────────────────────────────────────────	
-    for epoch in range(cfg["training"]["epochs"]):	
-	
+    for epoch in range(start_epoch, cfg["training"]["epochs"]):
         # Unfreeze CNN backbone after N epochs to fine-tune everything	
         if epoch == cfg["training"]["unfreeze_epoch"]:	
             model.freeze_backbone(freeze=False)	
@@ -132,7 +142,7 @@ def train():
             if torch.isnan(loss):
                 continue
 
-            
+
             # Backward pass	
             optimizer.zero_grad()	
             loss.backward()	
@@ -172,6 +182,15 @@ def train():
             }, "checkpoints/best_model.pt")	
             wandb.save("checkpoints/best_model.pt")	
             print(f"  Saved best model — WER: {val_wer:.4f}")	
+
+        
+        torch.save({
+            "epoch": epoch,
+            "model_state": model.state_dict(),
+            "optimizer_state": optimizer.state_dict(),
+            "val_wer": val_wer,
+            "vocab": train_set.gloss2idx
+        }, "checkpoints/latest_model.pt")
 	
         # Regular checkpoint every N epochs	
         if (epoch + 1) % cfg["training"]["save_every"] == 0:	
