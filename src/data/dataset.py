@@ -67,7 +67,8 @@ class PhoenixDataset(Dataset):
         vocab = sorted(all_chars)
         self.gloss2idx = {"<blank>": 0, "<unk>": 1, " ": 2}
         self.gloss2idx.update({c: i + 3 for i, c in enumerate(vocab) if c != " "})
-
+        self.idx2gloss = {v: k for k, v in self.gloss2idx.items()}
+        
         # i3d feature folder for this split
         self.npy_dir = os.path.join(self.I3D_BASE, split)
 
