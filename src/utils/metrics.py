@@ -2,22 +2,19 @@ import editdistance
 import torch	
 	
 	
-def decode_predictions(log_probs, idx2gloss):	
-    """	
-    Greedy CTC decode: at each time step pick the highest-probability token,	
-    then collapse consecutive duplicates, then remove blank tokens (index 0).	
-	
-    Args:	
-        log_probs: tensor (B, T, vocab_size)	
-        idx2gloss: dict mapping integer index -> gloss string	
-	
-    Returns:	
-        list of strings, one prediction per batch item	
-        e.g. ["HEUTE WETTER GUT", "MORGEN REGEN"]	
-    """	
-    # Greedy: pick highest probability token at each timestep	
-    preds = log_probs.argmax(dim=-1)  # (B, T)	
-    results = []	
+def decode_predictions(log_probs, idx2gloss):
+    """Greedy CTC decode — joins characters back to string."""
+    results = []
+    pred_ids = log_probs.argmax(-1)
+    for seq in pred_ids:
+        decoded, prev = [], None
+        for p in seq.tolist():
+            if p != 0 and p != prev:
+                decoded.append(idx2gloss.get(p, ""))
+            prev = p
+        # Join chars directly (no spaces between them)
+        results.append("".join(decoded))
+    return results	
 	
     for seq in preds:	
         decoded = []	

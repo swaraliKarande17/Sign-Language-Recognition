@@ -56,11 +56,17 @@ class PhoenixDataset(Dataset):
         # Build vocabulary from translations (word-level tokens)
         # Index 0 = <blank> reserved for CTC loss
         # Index 1 = <unk> for out-of-vocabulary words at inference
+        # OLD — word level (causes 99% WER)
         all_words = " ".join(self.data["translation"].tolist()).split()
         vocab = sorted(set(all_words))
         self.gloss2idx = {"<blank>": 0, "<unk>": 1}
         self.gloss2idx.update({w: i + 2 for i, w in enumerate(vocab)})
-        self.idx2gloss = {v: k for k, v in self.gloss2idx.items()}
+
+        # NEW — character level (fixes the mismatch problem)
+        all_chars = set(" ".join(self.data["translation"].tolist()))
+        vocab = sorted(all_chars)
+        self.gloss2idx = {"<blank>": 0, "<unk>": 1, " ": 2}
+        self.gloss2idx.update({c: i + 3 for i, c in enumerate(vocab) if c != " "})
 
         # i3d feature folder for this split
         self.npy_dir = os.path.join(self.I3D_BASE, split)
@@ -84,11 +90,11 @@ class PhoenixDataset(Dataset):
         frames_tensor = torch.tensor(features, dtype=torch.float32)  # (T, 1024)
 
         # Tokenize translation into integer label sequence
-        words = row["translation"].split()
+        chars = list(row["translation"].strip())
         label = torch.tensor(
-            [self.gloss2idx.get(w, 1) for w in words],
-            dtype=torch.long
-        )
+                [self.gloss2idx.get(c, 1) for c in chars],
+                dtype=torch.long
+)
 
         # Return (frames, None, label) — None keeps collate_fn signature intact
         return frames_tensor, None, label

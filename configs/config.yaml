@@ -8,19 +8,19 @@ data:
 
 # ─── Model settings ─────────────────────────────────────────────────
 model:
-  backbone: "i3d"        # pre-extracted i3d features (1024-dim), no CNN needed
-  hidden_size: 512       # BiLSTM hidden dimension
-  num_layers: 2          # number of stacked BiLSTM layers
-  dropout: 0.3           # dropout probability
-  freeze_backbone: false # no backbone to freeze with i3d features
+  backbone: "i3d"
+  hidden_size: 1024      # was 512 — bigger = better
+  num_layers: 3          # was 2
+  dropout: 0.3
+  freeze_backbone: false
 
 # ─── Training settings ──────────────────────────────────────────────
 training:
-  epochs: 50
-  learning_rate: 0.0001
+  epochs: 100            # was 50
+  learning_rate: 0.0003  # slightly higher for char-level
   weight_decay: 0.0001
   scheduler: "cosine"
-  unfreeze_epoch: 999  # effectively disabled — no CNN backbone
+  unfreeze_epoch: 999
   clip_grad_norm: 5.0
   save_every: 5
 
