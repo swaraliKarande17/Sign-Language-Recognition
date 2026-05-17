@@ -127,7 +127,12 @@ def train():
             T_out = torch.full((frames.size(0),), log_probs.size(1), dtype=torch.long)	
 	
             loss = ctc_loss(log_probs_t, labels, T_out, ll)	
-	
+	        
+            # Skip NaN batches
+            if torch.isnan(loss):
+                continue
+
+            
             # Backward pass	
             optimizer.zero_grad()	
             loss.backward()	
