@@ -6,8 +6,8 @@ class CSLRModel(nn.Module):
 
     I3D_FEATURE_DIM = 1024
 
-    def __init__(self, vocab_size, hidden_size=512,
-                 num_layers=2, dropout=0.3, use_keypoints=False):
+    def __init__(self, vocab_size, hidden_size=1024,
+                 num_layers=3, dropout=0.3, use_keypoints=False):
         super().__init__()
 
         self.feat_proj = nn.Sequential(
