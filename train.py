@@ -64,15 +64,14 @@ def train():
         max_frames=cfg["data"]["max_frames"],	
         img_size=cfg["data"]["img_size"]	
     )	
-    train_loader = DataLoader(	
-        train_set, batch_size=cfg["data"]["batch_size"],	
-        shuffle=True, collate_fn=collate_fn,	
-        num_workers=cfg["data"]["num_workers"]	
-    )	
-    val_loader = DataLoader(	
-        val_set, batch_size=2, shuffle=False,	
-        collate_fn=collate_fn, num_workers=2	
-    )	
+    from src.data.dataset import collate_fn
+
+loader = DataLoader(
+    dataset,
+    batch_size=4,
+    collate_fn=collate_fn,
+    shuffle=True
+)	
 	
     # ── Model ────────────────────────────────────────────────────────	
     model = CSLRModel(	
@@ -133,11 +132,11 @@ def train():
             log_probs = model(frames, keypoints)  # (B, T, V)	
 	
             # CTCLoss expects (T, B, V) format	
-            log_probs_t = log_probs.permute(1, 0, 2)	
-            T_out = torch.full((frames.size(0),), log_probs.size(1), dtype=torch.long)	
-	
-            loss = ctc_loss(log_probs_t, labels, T_out, ll)	
-	        
+            frames, input_lens, flat_labels, label_lens = batch
+            log_probs = model(frames)                     # (B, T, V)
+            log_probs_t = log_probs.permute(1, 0, 2)     # (T, B, V) for CTC
+            loss = ctc_loss(log_probs_t, flat_labels,
+                input_lens, label_lens)
             # Skip NaN batches
             if torch.isnan(loss):
                 continue
