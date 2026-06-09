@@ -45,44 +45,44 @@ class PhoenixDataset(Dataset):
         # ── Build vocab from ALL splits so train/val/test share same vocab ──
         # This fixes the train(2889 words) vs val(953 words) mismatch
        # Build vocab from all splits ONCE (shared vocab)
-def build_vocab(root_dir):
-    all_words = set(["<blank>"])   # index 0 = CTC blank
-    for split in ["train", "dev", "test"]:
-        tsv = os.path.join(root_dir, f"cvpr23.fairseq.i3d.{split}.how2sign.tsv")
-        if not os.path.exists(tsv): continue
-        df = pd.read_csv(tsv, sep="\t")
-        for sentence in df["translation"]:
-            all_words.update(sentence.strip().split())
-    vocab = {"<blank>": 0}
-    for i, w in enumerate(sorted(all_words - {"<blank>"}), start=1):
-        vocab[w] = i
-    return vocab
+    def build_vocab(root_dir):
+        all_words = set(["<blank>"])   # index 0 = CTC blank
+        for split in ["train", "dev", "test"]:
+            tsv = os.path.join(root_dir, f"cvpr23.fairseq.i3d.{split}.how2sign.tsv")
+            if not os.path.exists(tsv): continue
+            df = pd.read_csv(tsv, sep="\t")
+            for sentence in df["translation"]:
+                all_words.update(sentence.strip().split())
+        vocab = {"<blank>": 0}
+        for i, w in enumerate(sorted(all_words - {"<blank>"}), start=1):
+            vocab[w] = i
+        return vocab
 
 # In __getitem__: encode word-level
-words = row["translation"].strip().split()
-label = torch.tensor([self.vocab[w] for w in words
-                       if w in self.vocab], dtype=torch.long)
+    words = row["translation"].strip().split()
+    label = torch.tensor([self.vocab[w] for w in words
+                        if w in self.vocab], dtype=torch.long)
 
 
-def collate_fn(batch):
-    """Pad frames and labels to max length in batch."""
-    frames, labels = zip(*[(b[0], b[2]) for b in batch])
+    def collate_fn(batch):
+        """Pad frames and labels to max length in batch."""
+        frames, labels = zip(*[(b[0], b[2]) for b in batch])
 
-    # Pad frame sequences
-    T_max = max(f.shape[0] for f in frames)
-    padded_frames = torch.zeros(len(frames), T_max, frames[0].shape[1])
-    input_lengths = []
-    for i, f in enumerate(frames):
-        padded_frames[i, :f.shape[0]] = f
-        input_lengths.append(f.shape[0])
+        # Pad frame sequences
+        T_max = max(f.shape[0] for f in frames)
+        padded_frames = torch.zeros(len(frames), T_max, frames[0].shape[1])
+        input_lengths = []
+        for i, f in enumerate(frames):
+            padded_frames[i, :f.shape[0]] = f
+            input_lengths.append(f.shape[0])
 
-    # Concatenate labels (CTC takes flat labels + lengths)
-    label_lengths = [len(l) for l in labels]
-    flat_labels   = torch.cat(labels)
+        # Concatenate labels (CTC takes flat labels + lengths)
+        label_lengths = [len(l) for l in labels]
+        flat_labels   = torch.cat(labels)
 
-    return (
-        padded_frames,                              # (B, T_max, 1024)
-        torch.tensor(input_lengths),                # (B,)
-        flat_labels,                                # (sum of L_i,)
-        torch.tensor(label_lengths)                 # (B,)
-    )
+        return (
+            padded_frames,                              # (B, T_max, 1024)
+            torch.tensor(input_lengths),                # (B,)
+            flat_labels,                                # (sum of L_i,)
+            torch.tensor(label_lengths)                 # (B,)
+        )
