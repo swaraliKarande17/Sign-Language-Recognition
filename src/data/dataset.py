@@ -71,26 +71,25 @@ class PhoenixDataset(Dataset):
         )
 
         return features, label
-
-    def collate_fn(batch):
-        """Pad frames and labels to max length in batch."""
-        frames, labels = zip(*[(b[0], b[2]) for b in batch])
+def collate_fn(batch):
+    """Pad frames and labels to max length in batch."""
+    frames, labels = zip(*[(b[0], b[2]) for b in batch])
 
         # Pad frame sequences
-        T_max = max(f.shape[0] for f in frames)
-        padded_frames = torch.zeros(len(frames), T_max, frames[0].shape[1])
-        input_lengths = []
-        for i, f in enumerate(frames):
-            padded_frames[i, :f.shape[0]] = f
-            input_lengths.append(f.shape[0])
+    T_max = max(f.shape[0] for f in frames)
+    padded_frames = torch.zeros(len(frames), T_max, frames[0].shape[1])
+    input_lengths = []
+    for i, f in enumerate(frames):
+        padded_frames[i, :f.shape[0]] = f
+        input_lengths.append(f.shape[0])
 
         # Concatenate labels (CTC takes flat labels + lengths)
-        label_lengths = [len(l) for l in labels]
-        flat_labels   = torch.cat(labels)
+    label_lengths = [len(l) for l in labels]
+    flat_labels   = torch.cat(labels)
 
-        return (
-            padded_frames,                              # (B, T_max, 1024)
-            torch.tensor(input_lengths),                # (B,)
-            flat_labels,                                # (sum of L_i,)
-            torch.tensor(label_lengths)                 # (B,)
+    return (
+        padded_frames,                              # (B, T_max, 1024)
+        torch.tensor(input_lengths),                # (B,)
+        flat_labels,                                # (sum of L_i,)
+        torch.tensor(label_lengths)                 # (B,)
         )
