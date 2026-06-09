@@ -1,4 +1,4 @@
-new_model = '''import torch
+import torch
 import torch.nn as nn
 
 
@@ -40,13 +40,3 @@ class CSLRModel(nn.Module):
         lstm_out, _ = self.bilstm(feats)
         logits = self.ctc_head(lstm_out)
         return logits.log_softmax(dim=-1)
-'''
-
-import os
-os.chdir("/kaggle/working/Sign-Language-Recognition")
-
-
-with open("src/models/ctc_model.py", "wb") as f:
-    f.write(new_model.encode("utf-8"))
-
-print("✅ ctc_model.py fixed!")
