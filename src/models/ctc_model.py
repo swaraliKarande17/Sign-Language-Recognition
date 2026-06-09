@@ -1,5 +1,6 @@
 new_model = '''import torch
 import torch.nn as nn
+'''
 
 
 class CSLRModel(nn.Module):
@@ -43,6 +44,7 @@ class CSLRModel(nn.Module):
 
 import os
 os.chdir("/kaggle/working/Sign-Language-Recognition")
+'''
 
 with open("src/models/ctc_model.py", "wb") as f:
     f.write(new_model.encode("utf-8"))
