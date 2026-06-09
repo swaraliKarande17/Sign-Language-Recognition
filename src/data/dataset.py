@@ -28,19 +28,19 @@ class PhoenixDataset(Dataset):
         self.data = pd.read_csv(csv_path, sep="\t")
 
     # --- ADD THIS BLOCK ---
-    npy_dir = os.path.join(root_dir, f"i3d_features_{split}")
-    valid_rows = []
-    for _, row in self.data.iterrows():
-        npy_path = os.path.join(npy_dir, row["id"] + ".npy")
-        if not os.path.exists(npy_path):
-            continue           # skip missing files
+        npy_dir = os.path.join(root_dir, f"i3d_features_{split}")
+        valid_rows = []
+        for _, row in self.data.iterrows():
+            npy_path = os.path.join(npy_dir, row["id"] + ".npy")
+            if not os.path.exists(npy_path):
+                continue           # skip missing files
         T = np.load(npy_path, mmap_mode="r").shape[0]
         words = row["translation"].strip().split()
         L = len(words)         # word-level length
         if T >= L:             # CTC requires T >= L
             valid_rows.append(row)
-    self.data = pd.DataFrame(valid_rows).reset_index(drop=True)
-    print(f"[{split}] {len(self.data)} valid samples after filtering")
+        self.data = pd.DataFrame(valid_rows).reset_index(drop=True)
+        print(f"[{split}] {len(self.data)} valid samples after filtering")
     # ----------------------
         # ── Build vocab from ALL splits so train/val/test share same vocab ──
         # This fixes the train(2889 words) vs val(953 words) mismatch
