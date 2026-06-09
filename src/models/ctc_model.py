@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 
 
-
 class CSLRModel(nn.Module):
 
     I3D_FEATURE_DIM = 1024
