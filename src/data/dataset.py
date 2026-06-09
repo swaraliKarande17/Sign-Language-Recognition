@@ -1,4 +1,6 @@
+from cProfile import label
 import os
+from pyexpat import features
 import torch
 import numpy as np
 import pandas as pd
@@ -45,7 +47,7 @@ class PhoenixDataset(Dataset):
         # ── Build vocab from ALL splits so train/val/test share same vocab ──
         # This fixes the train(2889 words) vs val(953 words) mismatch
        # Build vocab from all splits ONCE (shared vocab)
-    def build_vocab(root_dir):
+    def build_vocab(self ,root_dir):
         all_words = set(["<blank>"])   # index 0 = CTC blank
         for split in ["train", "dev", "test"]:
             tsv = os.path.join(root_dir, f"cvpr23.fairseq.i3d.{split}.how2sign.tsv")
@@ -58,11 +60,17 @@ class PhoenixDataset(Dataset):
             vocab[w] = i
         return vocab
 
-# In __getitem__: encode word-level
-    words = row["translation"].strip().split()
-    label = torch.tensor([self.vocab[w] for w in words
-                        if w in self.vocab], dtype=torch.long)
+    def __getitem__(self, idx):
+        row = self.data.iloc[idx]
 
+        words = row["translation"].strip().split()
+
+        label = torch.tensor(
+            [self.vocab[w] for w in words if w in self.vocab],
+            dtype=torch.long
+        )
+
+        return features, label
 
     def collate_fn(batch):
         """Pad frames and labels to max length in batch."""
