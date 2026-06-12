@@ -130,11 +130,21 @@ def train():
         total_loss = 0  
         pbar = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{cfg['training']['epochs']}")    
     
-        for frames, keypoints, labels, fl, ll in pbar:  
-            frames = frames.to(device)  
-            if keypoints is not None:   
-                keypoints = keypoints.to(device)    
-            labels = labels.to(device)  
+        for frames, input_lengths, flat_labels, label_lengths in pbar:
+            frames       = frames.to(device)
+            flat_labels  = flat_labels.to(device)
+            input_lengths = input_lengths.to(device)
+            label_lengths = label_lengths.to(device)
+
+            optimizer.zero_grad()
+            log_probs = model(frames)                      # (B, T, vocab)
+            log_probs_t = log_probs.permute(1, 0, 2)       # (T, B, vocab) for CTC
+            loss = ctc_loss(log_probs_t, flat_labels,
+                            input_lengths, label_lengths)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(),
+                                        cfg["training"]["clip_grad_norm"])
+            optimizer.step() 
     
             # Forward pass  
             log_probs = model(frames, keypoints)  # (B, T, V)   
