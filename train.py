@@ -54,16 +54,16 @@ def train():
     print(f"Training on: {device}") 
     
     # ── Datasets ───────────────────────────────────────────────────── 
-    train_set = PhoenixDataset( 
-        cfg["data"]["dataset_path"], split="train", 
-        max_frames=cfg["data"]["max_frames"],   
-        img_size=cfg["data"]["img_size"]    
-    )   
-    val_set = PhoenixDataset(   
-        cfg["data"]["dataset_path"], split="val",   
-        max_frames=cfg["data"]["max_frames"],   
-        img_size=cfg["data"]["img_size"]    
-    )   
+    train_set = PhoenixDataset(
+        split="train",
+        root_dir=cfg["data"]["dataset_path"],
+        max_frames=cfg["data"]["max_frames"]
+   )
+    val_set = PhoenixDataset(
+        split="val",
+        root_dir=cfg["data"]["dataset_path"],
+        max_frames=cfg["data"]["max_frames"]
+)  
     from src.data.dataset import collate_fn
 
     train_loader = DataLoader(
