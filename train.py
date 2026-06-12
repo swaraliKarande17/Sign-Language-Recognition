@@ -83,7 +83,7 @@ def train():
     
     # ── Model ──────────────────────────────────────────────────────── 
     model = CSLRModel(  
-        vocab_size=len(train_set.gloss2idx),    
+        vocab_size=len(train_set.vocab),    
         hidden_size=cfg["model"]["hidden_size"],    
         num_layers=cfg["model"]["num_layers"],  
         dropout=cfg["model"]["dropout"] 
@@ -185,7 +185,7 @@ def train():
                 "model_state": model.state_dict(),  
                 "optimizer_state": optimizer.state_dict(),  
                 "val_wer": val_wer, 
-                "vocab": train_set.gloss2idx    
+                "vocab": train_set.vocab   
             }, "checkpoints/best_model.pt") 
             wandb.save("checkpoints/best_model.pt") 
             print(f"  Saved best model — WER: {val_wer:.4f}")   
@@ -196,7 +196,7 @@ def train():
             "model_state": model.state_dict(),
             "optimizer_state": optimizer.state_dict(),
             "val_wer": val_wer,
-            "vocab": train_set.gloss2idx
+            "vocab": train_set.vocab
         }, "checkpoints/latest_model.pt")
     
         # Regular checkpoint every N epochs 
