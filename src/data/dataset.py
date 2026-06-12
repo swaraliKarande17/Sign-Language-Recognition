@@ -41,6 +41,11 @@ class PhoenixDataset(Dataset):
         # Build shared word vocabulary from all splits
         self.vocab = self._build_vocab()
 
+        self.idx2word = {
+            v: k
+            for k, v in self.vocab.items()
+        }
+
         # Filter out bad samples where T < L
         valid_rows = []
         for _, row in self.data.iterrows():

@@ -2,7 +2,7 @@ import editdistance
 import torch	
 	
 	
-def decode_predictions(log_probs, idx2gloss):
+def decode_predictions(log_probs, idx2word):
     """Greedy CTC decode — joins characters back to string."""
     results = []
     pred_ids = log_probs.argmax(-1)
@@ -10,22 +10,10 @@ def decode_predictions(log_probs, idx2gloss):
         decoded, prev = [], None
         for p in seq.tolist():
             if p != 0 and p != prev:
-                decoded.append(idx2gloss.get(p, ""))
+                decoded.append(idx2word.get(p, ""))
             prev = p
         # Join chars directly (no spaces between them)
         results.append("".join(decoded))
-    return results	
-	
-    for seq in preds:	
-        decoded = []	
-        prev = None	
-        for token in seq.tolist():	
-            # Skip duplicates and skip blank token (0)	
-            if token != prev and token != 0:	
-                decoded.append(idx2gloss.get(token, "<unk>"))	
-            prev = token	
-        results.append(" ".join(decoded))	
-	
     return results	
 	
 	

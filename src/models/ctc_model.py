@@ -7,7 +7,7 @@ class CSLRModel(nn.Module):
     I3D_FEATURE_DIM = 1024
 
     def __init__(self, vocab_size, hidden_size=1024,
-                 num_layers=3, dropout=0.3, use_keypoints=False):
+                 num_layers=3, dropout=0.3):
         super().__init__()
 
         self.feat_proj = nn.Sequential(
@@ -34,7 +34,7 @@ class CSLRModel(nn.Module):
     def freeze_backbone(self, freeze=True):
         pass
 
-    def forward(self, frames, keypoints=None):
+    def forward(self, frames):
         feats = self.feat_proj(frames)
         lstm_out, _ = self.bilstm(feats)
         logits = self.ctc_head(lstm_out)
